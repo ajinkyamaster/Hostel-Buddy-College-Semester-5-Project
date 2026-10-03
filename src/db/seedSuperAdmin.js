@@ -1,42 +1,25 @@
 'use strict';
 
-// Idempotently ensures the single super-administrator account exists. Called on
-// server startup; safe to run repeatedly (creates the account only if absent).
-//
-// The super admin is deliberately unscoped — it has no hostel_id — so it sees
-// and manages every hostel. Managers, by contrast, are tied to one hostel.
-//
-// This writes the USER row and its SUPER_ADMIN subtype row inside a single
-// transaction. That pairing is design note DN-2: `user.role` claims which
-// subtype exists, but SQL alone cannot enforce that the matching row is really
-// there, so the two writes must succeed or fail together.
 const bcrypt = require('bcryptjs');
 const { db } = require('./index');
 const config = require('../config/env');
-const { ROLES } = require('../config/constants');
 
-function seedSuperAdmin() {
+async function seedSuperAdmin() {
   const email = config.admin.email.trim().toLowerCase();
-
-  const existing = db.prepare('SELECT user_id, email FROM user WHERE email = ?').get(email);
-  if (existing) return existing;
-
-  const passwordHash = bcrypt.hashSync(config.admin.password, 10);
-
-  db.exec('BEGIN');
-  try {
-    const info = db
-      .prepare('INSERT INTO user (name, email, password_hash, role) VALUES (?, ?, ?, ?)')
-      .run(config.admin.name, email, passwordHash, ROLES.SUPER_ADMIN);
-    const userId = Number(info.lastInsertRowid);
-    db.prepare('INSERT INTO super_admin (user_id) VALUES (?)').run(userId);
-    db.exec('COMMIT');
-    console.log(`[seed] super administrator created: ${email}`);
-    return { user_id: userId, email };
-  } catch (err) {
-    db.exec('ROLLBACK');
-    throw err;
+  const existing = await db.prepare('SELECT user_id, role FROM user WHERE email = ?').get(email);
+  if (existing) {
+    if (existing.role !== 'super_admin') throw new Error('ADMIN_EMAIL belongs to a non-admin account');
+    return existing;
   }
+  const hash = await bcrypt.hash(config.admin.password, 10);
+  return db.transaction(async () => {
+    // Another instance may have initialized the same database in the meantime.
+    await db.prepare("INSERT INTO user (name, email, password_hash, role) VALUES (?, ?, ?, 'super_admin') ON CONFLICT(email) DO NOTHING")
+      .run(config.admin.name, email, hash);
+    const user = await db.prepare('SELECT user_id, role FROM user WHERE email = ?').get(email);
+    if (user.role !== 'super_admin') throw new Error('ADMIN_EMAIL belongs to a non-admin account');
+    await db.prepare('INSERT OR IGNORE INTO super_admin (user_id) VALUES (?)').run(user.user_id);
+    return user;
+  });
 }
-
 module.exports = { seedSuperAdmin };

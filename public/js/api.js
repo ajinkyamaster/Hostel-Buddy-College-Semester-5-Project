@@ -24,13 +24,15 @@ async function api(method, path, options = {}) {
     payload = JSON.stringify(body);
   }
 
-  const res = await fetch('/api' + path, { method, headers, body: payload });
+  let res;
+  try { res = await fetch('/api' + path, { method, headers, body: payload }); }
+  catch { throw new ApiError('Cannot reach the server. Check your connection and try again.', 0, null); }
 
   let data = null;
   const text = await res.text();
   if (text) { try { data = JSON.parse(text); } catch { data = text; } }
 
-  if (res.status === 401) {
+  if (res.status === 401 && !path.startsWith('/auth/')) {
     Auth.clear();
     const onPublic = /(^|\/)(index\.html|login\.html|register\.html)$/.test(location.pathname) || location.pathname.endsWith('/');
     // replace(), so the page whose session just died is not left in the
@@ -39,8 +41,11 @@ async function api(method, path, options = {}) {
     throw new ApiError('Your session has expired. Please log in again.', 401, data);
   }
   if (!res.ok) {
-    const message = (data && data.error && data.error.message) || 'Something went wrong.';
+    const message = (data && data.error && data.error.message) || (res.status >= 500 ? 'The server is unavailable. Please try again later.' : 'The request could not be completed.');
     throw new ApiError(message, res.status, data);
+  }
+  if (!res.headers.get('content-type')?.includes('application/json')) {
+    throw new ApiError('The API returned a page instead of JSON. Check the deployment routing.', res.status, null);
   }
   return data;
 }

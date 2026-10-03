@@ -28,7 +28,10 @@ function readLogLevel(raw) {
 }
 
 const config = {
-  env: process.env.NODE_ENV || 'development',
+  env: process.env.VERCEL ? 'production' : process.env.NODE_ENV || 'development',
+  vercel: Boolean(process.env.VERCEL),
+  databaseUrl: process.env.TURSO_DATABASE_URL || '',
+  databaseToken: process.env.TURSO_AUTH_TOKEN || '',
   port: Number(process.env.PORT) || 4000,
 
   // Auth
@@ -47,7 +50,7 @@ const config = {
 
   // Storage
   dbPath: resolveFromRoot(process.env.DB_PATH, './data/hostel.db'),
-  uploadDir: resolveFromRoot(process.env.UPLOAD_DIR, './uploads'),
+  uploadDir: process.env.VERCEL ? '/tmp/hostel-buddy-uploads' : resolveFromRoot(process.env.UPLOAD_DIR, './uploads'),
 
   // Upload limits.
   //
@@ -66,13 +69,17 @@ const config = {
 // A graded/deployed demo must never boot with a guessable secret or password.
 if (config.env === 'production') {
   const problems = [];
-  if (!process.env.JWT_SECRET || config.jwtSecret === 'dev-secret-change-me') {
+  if (!process.env.JWT_SECRET || ['dev-secret-change-me', 'change-me-to-a-long-random-secret'].includes(config.jwtSecret)) {
     problems.push('JWT_SECRET must be set to a strong, random value');
   } else if (config.jwtSecret.length < 16) {
     problems.push('JWT_SECRET is too short (use at least 16 characters)');
   }
   if (config.admin.password === 'admin123') {
     problems.push('ADMIN_PASSWORD must be changed from the default');
+  }
+  if (!process.env.ADMIN_EMAIL) problems.push('ADMIN_EMAIL must be set');
+  if (config.vercel && (!config.databaseUrl || !config.databaseToken)) {
+    problems.push('Vercel requires TURSO_DATABASE_URL and TURSO_AUTH_TOKEN (local SQLite is not persistent)');
   }
   if (problems.length) {
     throw new Error(
@@ -83,3 +90,7 @@ if (config.env === 'production') {
 }
 
 module.exports = config;
+
+if (config.databaseUrl && !/^(libsql|https):\/\//.test(config.databaseUrl)) {
+  throw new Error('TURSO_DATABASE_URL must use libsql:// or https://');
+}

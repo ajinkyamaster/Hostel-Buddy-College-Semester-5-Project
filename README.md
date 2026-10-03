@@ -118,9 +118,15 @@ Regenerate them any time with `node docs/screenshots-source/capture.js` (headles
 
 ---
 
+## Deploy on Vercel
+
+For a persistent Vercel deployment, create a Turso libSQL database and set the Vercel environment variables before deploying. See the [Vercel deployment guide](docs/vercel-deployment.md) for the exact steps, login troubleshooting, and the current attachment limitation. The demo credentials below apply only to local development after seeding.
+
+---
+
 ## 🚀 Getting Started
 
-> Prerequisites: **Node.js 22.5+** (for the built-in `node:sqlite` module). No compiler or build tools needed.
+> Prerequisites: **Node.js 24.x** (for the built-in `node:sqlite` module). No compiler or build tools needed.
 
 ```bash
 npm install
@@ -299,7 +305,7 @@ There is no maximum duration — that would mean decoding container metadata on 
 | Security | `helmet` headers + CSP, rate-limited auth endpoints, byte-level upload validation |
 | Uploads | Multer → local `/uploads` (swappable for object storage) |
 
-The database uses Node's built-in SQLite so a teammate can clone and run with **no compiler toolchain** — see decision D5 in [problems_faced_and_bugs_encountered.md](docs/problems_faced_and_bugs_encountered.md). Trade-offs behind the rest: [docs/architecture.md](docs/architecture.md) §9.
+Local development uses Node's built-in SQLite, so a teammate can clone and run with **no compiler toolchain**. Vercel uses remote libSQL for durable accounts and complaints; see [the deployment guide](docs/vercel-deployment.md). The local driver choice is explained in [problems_faced_and_bugs_encountered.md](docs/problems_faced_and_bugs_encountered.md) (D5). Trade-offs behind the rest: [docs/architecture.md](docs/architecture.md) §9.
 
 ---
 
@@ -354,7 +360,8 @@ Errors come back in one shape: `{ "error": { "message": "...", "code": "..." } }
 | `JWT_SECRET` | Secret for signing auth tokens |
 | `LOG_LEVEL` | Request logging: `api` (default), `all`, or `none` |
 | `ADMIN_NAME` / `ADMIN_EMAIL` / `ADMIN_PASSWORD` | Seeded super-admin account |
-| `DB_PATH` | SQLite database file location |
+| `DB_PATH` | Local SQLite database file location |
+| `TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN` | Remote libSQL database and token; required on Vercel |
 | `UPLOAD_DIR` | Where complaint images and videos are stored |
 
 ---

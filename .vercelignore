@@ -1,0 +1,12 @@
+.git
+.env
+.env.*
+!.env.example
+node_modules
+data
+uploads
+__pycache__
+test_*.py
+tests
+docs
+*.pdf

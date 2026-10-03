@@ -44,6 +44,12 @@ function removeTestUploads() {
 const childEnv = {
   ...process.env,
   NODE_ENV: 'test',
+  VERCEL: '',
+  TURSO_DATABASE_URL: '',
+  TURSO_AUTH_TOKEN: '',
+  ADMIN_EMAIL: 'admin@hostel.test',
+  ADMIN_PASSWORD: 'admin123',
+  JWT_SECRET: 'isolated-test-secret-not-for-deployment',
   PORT: String(PORT),
   DB_PATH,
   UPLOAD_DIR,

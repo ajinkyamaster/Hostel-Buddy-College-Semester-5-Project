@@ -29,7 +29,13 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(requestLogger);
 
-// --- Health check (Phase 0) ---
+// Bootstrap also runs when Vercel imports the Express app without server.js.
+app.use('/api', async (req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  try { await require('./bootstrap').initialize(); next(); } catch (err) { next(err); }
+});
+
+// --- Health check ---
 app.get('/api/health', (req, res) => {
   res.json({ ok: true, service: 'hostel-buddy', time: new Date().toISOString() });
 });
